@@ -15,7 +15,8 @@ var aoi=new ee.FeatureCollection(ee.Geometry.Polygon(
 Map.addLayer(aoi,{color:'green'},'aoi_calimantan');
 
 //Zoom to
-Map.centerObject(aoi,8);
+//Map.centerObject(aoi,8);
+
 //Lets look on landsat8 collection for summer 2016
 var L8_16 = ee.ImageCollection('LANDSAT/LC8_L1T')
    //set bounds
@@ -31,6 +32,7 @@ var vizParamsL8 = {'bands': 'B6,B5,B4',
                  'gamma': 1.6};
 //Add to map
 Map.addLayer(L8_16, vizParamsL8, 'L8 collection');
+
 //Now lets try remove clouds
 
 //OPTION 1 Set "free-cloud" image collection using Landsat 8 with BQA dataset for summer 2016
@@ -53,7 +55,7 @@ print(filterL8_16);
 Map.addLayer(filterL8_16, vizParamsL8, 'L8 collection "free-cloud"');
 //ADD predefined simple mosaic algorythm and create mosaic
 var mosaic_L8_16_composyte=ee.Algorithms.Landsat.simpleComposite(filterL8_16);
-//Landsat.simpleComposite (LC) reduce image type to Byte and we need set new visualissation parameters
+//Landsat.simpleComposite (LC) reduce image type to Byte (0-255) and we need set new visualissation parameters
 var vizParamsLC = {'bands': 'B6,B5,B4',
                  'min': 10,
                  'max': 128,
@@ -64,8 +66,9 @@ var vizParamsLC = {'bands': 'B6,B5,B4',
 var clipped_L8_16_composyte=mosaic_L8_16_composyte.clipToCollection(aoi);
 //Add to map
 Map.addLayer(clipped_L8_16_composyte, vizParamsLC, 'L8 composyte "free-cloud"');
+
 //OPTION 2   Set "free-cloud" image collection using Landsat 8 TOA with FMASK dataset for summer 2016
-//more complex function, but result is better
+//more complex function, but result is can be better
 
 var filterL8TOA16 = ee.ImageCollection('LANDSAT/LC8_L1T_TOA_FMASK')
    //set bounds
@@ -80,7 +83,7 @@ var filterL8TOA16 = ee.ImageCollection('LANDSAT/LC8_L1T_TOA_FMASK')
       return img.mask(img.mask().and(cloudMask));
 })
   .map(function(img){
-    //select only 4 bands and change reflectance (float 0-1) to 0-255 DN
+    //select only 3 bands and change reflectance (float 0-1) to 0-255 DN
       return img.expression('b("B6","B5","B4")*255');
 })
   .map(function(img){
@@ -88,10 +91,10 @@ var filterL8TOA16 = ee.ImageCollection('LANDSAT/LC8_L1T_TOA_FMASK')
       return img.byte();
 })
 ;
-//Get median composyte
+//Get median composyte,also available max(),average(), min() functions. 
 var medianL8TOA16=filterL8TOA16.median();
 //Clip to aoi
-var clipped_medianL8TOA16=medianL8TOA16.clipToCollection(aoi)
+var clipped_medianL8TOA16=medianL8TOA16.clipToCollection(aoi);
 //Add to map using visual parameters same as Landsate comosyte
 Map.addLayer(clipped_medianL8TOA16, vizParamsLC, 'L8TOA composyte "free-cloud"');
 
@@ -109,6 +112,9 @@ var vizParamsS2 = {'bands': 'B11,B8,B3',
                  'min': 300,
                  'max': 5000,
                  'gamma': 1.6};
+//print collection 
+print(S2_collection);
+
 //Add collection to map
 Map.addLayer(S2_collection, vizParamsS2, 'S2 collection');
 
@@ -129,17 +135,12 @@ var S2_collection_cloudfree = ee.ImageCollection('COPERNICUS/S2')
       return img.select("B11","B8","B3");
 });
 
-//Add collection to map and compare
-
-//print collection 
-print(S2_collection);
-
 //Set median composyte
 var medianS2=S2_collection_cloudfree.median();
 //Clip by aoi
 var clippedS2=medianS2.clipToCollection(aoi);
 
-//Add collection to map and compare
+//Add to map and compare
 Map.addLayer(clippedS2, vizParamsS2, 'S2 collection cloud-free');
 
 //Look at selected image from collection Sentinel-2
@@ -160,7 +161,7 @@ print(dwld);
 //export Sentinel
 Export.image.toDrive({
     image:clippedS2,
-    description: 'clippedS2',
+    description: 'clippedS2-2016',
     scale: 10,
     maxPixels: 50000000000
   })
@@ -168,7 +169,7 @@ Export.image.toDrive({
 //export Landsat
 Export.image.toDrive({
     image: clipped_L8_16_composyte,
-    description: 'clipped_L8_2016_composyte',
+    description: 'clipped_L8_composyte_2016',
     scale: 30,
     maxPixels: 50000000000
   })
@@ -179,3 +180,4 @@ Export.table.toDrive({
   description:'AOI',
   fileFormat: 'KML'
 });
+
